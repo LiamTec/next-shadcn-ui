@@ -1,5 +1,6 @@
 "use client"
 
+import React, { useEffect, useMemo, useState } from "react"
 import {
   Table,
   TableBody,
@@ -12,56 +13,12 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { useData } from "@/context/DataContext"
+import { Spinner } from "@/components/ui/spinner"
+import { Pagination } from "@/components/ui/pagination"
+import { TaskFormDialog } from "@/components/TaskManager"
 
-const tasks = [
-  {
-    id: 1,
-    title: "Implementar autenticación",
-    project: "E-commerce Platform",
-    status: "En progreso",
-    priority: "Alta",
-    assignee: "María García",
-    dueDate: "2025-11-15",
-  },
-  {
-    id: 2,
-    title: "Diseñar pantalla de perfil",
-    project: "Mobile App",
-    status: "Pendiente",
-    priority: "Media",
-    assignee: "Ana López",
-    dueDate: "2025-11-20",
-  },
-  {
-    id: 3,
-    title: "Configurar CI/CD",
-    project: "API Gateway",
-    status: "Completado",
-    priority: "Alta",
-    assignee: "Carlos Ruiz",
-    dueDate: "2025-11-10",
-  },
-  {
-    id: 4,
-    title: "Optimizar queries SQL",
-    project: "E-commerce Platform",
-    status: "En progreso",
-    priority: "Urgente",
-    assignee: "Juan Pérez",
-    dueDate: "2025-11-12",
-  },
-  {
-    id: 5,
-    title: "Documentar API endpoints",
-    project: "API Gateway",
-    status: "Pendiente",
-    priority: "Baja",
-    assignee: "Laura Martínez",
-    dueDate: "2025-11-25",
-  },
-]
-
-const statusVariant = (status: string) => {
+const statusVariant = (status: string | undefined) => {
   switch (status) {
     case "Completado":
       return "default"
@@ -74,7 +31,7 @@ const statusVariant = (status: string) => {
   }
 }
 
-const priorityVariant = (priority: string) => {
+const priorityVariant = (priority: string | undefined) => {
   switch (priority) {
     case "Urgente":
       return "destructive"
@@ -90,49 +47,90 @@ const priorityVariant = (priority: string) => {
 }
 
 export function TasksTable() {
+  const { tasks, members, projects, deleteTask, settings } = useData()
+  const [loading, setLoading] = useState(false)
+  const [page, setPage] = useState(1)
+  const pageSize = settings?.itemsPerPage ?? 5
+
+  // simulate loading when tasks change
+  useEffect(() => {
+    setLoading(true)
+    const t = setTimeout(() => setLoading(false), 400)
+    return () => clearTimeout(t)
+  }, [tasks])
+
+  const totalPages = Math.max(1, Math.ceil(tasks.length / pageSize))
+
+  const paged = useMemo(() => tasks.slice((page - 1) * pageSize, page * pageSize), [tasks, page, pageSize])
+
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableCaption>Lista de todas las tareas del proyecto</TableCaption>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[50px]">
-              <Checkbox />
-            </TableHead>
-            <TableHead>Tarea</TableHead>
-            <TableHead>Proyecto</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead>Prioridad</TableHead>
-            <TableHead>Asignado a</TableHead>
-            <TableHead>Fecha límite</TableHead>
-            <TableHead className="text-right">Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {tasks.map((task) => (
-            <TableRow key={task.id}>
-              <TableCell>
-                <Checkbox />
-              </TableCell>
-              <TableCell className="font-medium">{task.title}</TableCell>
-              <TableCell>{task.project}</TableCell>
-              <TableCell>
-                <Badge variant={statusVariant(task.status)}>{task.status}</Badge>
-              </TableCell>
-              <TableCell>
-                <Badge variant={priorityVariant(task.priority)}>{task.priority}</Badge>
-              </TableCell>
-              <TableCell>{task.assignee}</TableCell>
-              <TableCell>{task.dueDate}</TableCell>
-              <TableCell className="text-right">
-                <Button variant="ghost" size="sm">
-                  Editar
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+    <div className="rounded-md border p-2">
+      {loading ? (
+        <div className="flex items-center justify-center p-6">
+          <Spinner className="h-8 w-8 text-primary" />
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-3">
+            <div />
+            <TaskFormDialog onSaved={() => {}}>
+              <Button>Crear tarea</Button>
+            </TaskFormDialog>
+          </div>
+
+          <Table>
+            <TableCaption>Lista de todas las tareas del proyecto</TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[50px]">
+                  <Checkbox />
+                </TableHead>
+                <TableHead>Tarea</TableHead>
+                <TableHead>Proyecto</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Prioridad</TableHead>
+                <TableHead>Asignado a</TableHead>
+                <TableHead>Fecha límite</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paged.map((task) => (
+                <TableRow key={task.id}>
+                  <TableCell>
+                    <Checkbox />
+                  </TableCell>
+                  <TableCell className="font-medium">{task.description}</TableCell>
+                  <TableCell>{projects.find((p) => p.id === task.projectId)?.name ?? "-"}</TableCell>
+                  <TableCell>
+                    <Badge variant={statusVariant(task.status)}>{task.status}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={priorityVariant(task.priority)}>{task.priority}</Badge>
+                  </TableCell>
+                  <TableCell>{members.find((m) => m.userId === task.userId)?.name ?? "-"}</TableCell>
+                  <TableCell>{task.dateline}</TableCell>
+                  <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                      <TaskFormDialog task={task} onSaved={() => {}}>
+                        <Button variant="ghost" size="sm">Editar</Button>
+                      </TaskFormDialog>
+                      <Button variant="destructive" size="sm" onClick={() => deleteTask(task.id!)}>
+                        Eliminar
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+
+          <div className="flex items-center justify-between mt-4">
+            <div />
+            <Pagination page={page} totalPages={totalPages} onChange={(p) => setPage(p)} />
+          </div>
+        </>
+      )}
     </div>
   )
 }

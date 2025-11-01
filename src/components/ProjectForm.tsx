@@ -1,6 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import { useData } from "@/context/DataContext"
+import { Spinner } from "@/components/ui/spinner"
+import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -28,15 +31,32 @@ export function ProjectForm() {
     description: "",
     category: "",
     priority: "",
+    members: "",
   })
+  const { addProject } = useData()
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
-    
-    // Limpiar y cerrar
-    setFormData({ name: "", description: "", category: "", priority: "" })
-    setOpen(false)
+    if (!formData.name || !formData.category || !formData.priority) {
+      setError("Por favor completa los campos obligatorios")
+      return
+    }
+    setError("")
+    setSaving(true)
+    setTimeout(() => {
+      addProject({
+        name: formData.name,
+        description: formData.description,
+        category: formData.category,
+        priority: formData.priority,
+        members: formData.members ? formData.members.split(",").map((s) => s.trim()) : [],
+      })
+      setSaving(false)
+      setFormData({ name: "", description: "", category: "", priority: "", members: "" })
+      setOpen(false)
+    }, 600)
   }
 
   return (
@@ -130,12 +150,25 @@ export function ProjectForm() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="members">Miembros (userIds, separados por coma)</Label>
+              <Input
+                id="members"
+                placeholder="u1,u2"
+                value={formData.members}
+                onChange={(e) => setFormData({ ...formData, members: e.target.value })}
+              />
+            </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit">Crear Proyecto</Button>
+            {error && <Alert title="Validación" description={error} variant="destructive" />}
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit">{saving ? <Spinner className="h-4 w-4" /> : "Crear Proyecto"}</Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

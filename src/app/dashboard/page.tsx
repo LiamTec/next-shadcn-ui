@@ -4,12 +4,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ProjectForm } from "@/components/ProjectForm"
 import { TasksTable } from "@/components/TaskTable"
+import { SettingsForm } from "@/components/SettingsForm"
+import { TeamManager } from "@/components/TeamManager"
+import { ProjectDetails } from "@/components/ProjectDetails"
+import { useData } from "@/context/DataContext"
 
 
 export default function DashboardPage() {
+  const { projects, tasks, members, deleteProject } = useData()
+  const totalProjects = (projects || []).length
+  const completedTasks = (tasks || []).filter((t) => t.status === "Completado").length
+  const hoursWorked = (tasks || []).length * 8
+  const activeMembers = (members || []).filter((m) => !!m.isActive).length
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
       <div className="max-w-7xl mx-auto">
@@ -61,10 +70,8 @@ export default function DashboardPage() {
                   </svg>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">12</div>
-                  <p className="text-xs text-muted-foreground">
-                    +2 desde el mes pasado
-                  </p>
+                  <div className="text-2xl font-bold">{totalProjects}</div>
+                  <p className="text-xs text-muted-foreground">Desde datos en memoria</p>
                 </CardContent>
               </Card>
 
@@ -87,10 +94,8 @@ export default function DashboardPage() {
                   </svg>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">143</div>
-                  <p className="text-xs text-muted-foreground">
-                    +19% desde la semana pasada
-                  </p>
+                  <div className="text-2xl font-bold">{completedTasks}</div>
+                  <p className="text-xs text-muted-foreground">Tareas completadas</p>
                 </CardContent>
               </Card>
 
@@ -114,10 +119,8 @@ export default function DashboardPage() {
                   </svg>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">324h</div>
-                  <p className="text-xs text-muted-foreground">
-                    +12h desde ayer
-                  </p>
+                  <div className="text-2xl font-bold">{hoursWorked}h</div>
+                  <p className="text-xs text-muted-foreground">Horas aproximadas</p>
                 </CardContent>
               </Card>
 
@@ -142,10 +145,8 @@ export default function DashboardPage() {
                   </svg>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">8</div>
-                  <p className="text-xs text-muted-foreground">
-                    +1 nuevo miembro
-                  </p>
+                  <div className="text-2xl font-bold">{activeMembers}</div>
+                  <p className="text-xs text-muted-foreground">Miembros activos</p>
                 </CardContent>
               </Card>
             </div>
@@ -191,67 +192,21 @@ export default function DashboardPage() {
           {/* Tab: Projects */}
           <TabsContent value="projects" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {[
-                {
-                  title: "E-commerce Platform",
-                  description: "Plataforma de comercio electrónico con Next.js",
-                  status: "En progreso",
-                  progress: 65,
-                  team: 5,
-                },
-                {
-                  title: "Mobile App",
-                  description: "Aplicación móvil con React Native",
-                  status: "En revisión",
-                  progress: 90,
-                  team: 3,
-                },
-                {
-                  title: "Dashboard Analytics",
-                  description: "Panel de análisis con visualizaciones",
-                  status: "Planificado",
-                  progress: 20,
-                  team: 4,
-                },
-                {
-                  title: "API Gateway",
-                  description: "Microservicios con Node.js",
-                  status: "En progreso",
-                  progress: 45,
-                  team: 6,
-                },
-                {
-                  title: "Design System",
-                  description: "Librería de componentes reutilizables",
-                  status: "Completado",
-                  progress: 100,
-                  team: 2,
-                },
-                {
-                  title: "Marketing Website",
-                  description: "Sitio web institucional",
-                  status: "En progreso",
-                  progress: 75,
-                  team: 3,
-                },
-              ].map((project, i) => (
-                <Card key={i}>
+              {projects.map((project) => {
+                const projectTasks = tasks.filter((t) => t.projectId === project.id)
+                const total = projectTasks.length
+                const completed = projectTasks.filter((t) => t.status === "Completado").length
+                const progress = total === 0 ? 0 : Math.round((completed / total) * 100)
+                return (
+                <Card key={project.id}>
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
-                        <CardTitle className="text-lg">{project.title}</CardTitle>
+                        <CardTitle className="text-lg">{project.name}</CardTitle>
                         <CardDescription>{project.description}</CardDescription>
                       </div>
-                      <Badge
-                        variant={
-                          project.status === "Completado"
-                            ? "default"
-                            : project.status === "En revisión"
-                            ? "secondary"
-                            : "outline"
-                        }
-                      >
-                        {project.status}
+                      <Badge variant={project.priority === "high" ? "destructive" : project.priority === "medium" ? "secondary" : "default"}>
+                        {project.priority}
                       </Badge>
                     </div>
                   </CardHeader>
@@ -259,15 +214,10 @@ export default function DashboardPage() {
                     <div className="space-y-3">
                       <div>
                         <div className="flex items-center justify-between text-sm mb-2">
-                          <span className="text-muted-foreground">Progreso</span>
-                          <span className="font-medium">{project.progress}%</span>
+                          <span className="text-muted-foreground">Tareas</span>
+                          <span className="font-medium">{total}</span>
                         </div>
-                        <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary transition-all"
-                            style={{ width: `${project.progress}%` }}
-                          />
-                        </div>
+                        <div className="text-sm text-muted-foreground">{(project.members || []).join(", ") || "Sin miembros"}</div>
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -285,16 +235,18 @@ export default function DashboardPage() {
                             <circle cx="9" cy="7" r="4" />
                             <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
                           </svg>
-                          {project.team} miembros
+                          {progress}% completado • { (project.members || []).length } miembros
                         </div>
-                        <Button size="sm" variant="ghost">
-                          Ver detalles
-                        </Button>
+                        <div className="flex gap-2">
+                          <ProjectDetails project={project} />
+                          <Button size="sm" variant="destructive" onClick={() => { if (confirm('Eliminar proyecto?')) { deleteProject(project.id) } }}>Eliminar</Button>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                )
+              })}
             </div>
           </TabsContent>
 
@@ -315,63 +267,12 @@ export default function DashboardPage() {
 
           {/* Tab: Team */}
           <TabsContent value="team" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Miembros del Equipo</CardTitle>
-                <CardDescription>
-                  Gestiona los miembros de tu equipo y sus roles
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {[
-                    { name: "María García", role: "Frontend Developer", email: "maria@example.com", status: "Activo" },
-                    { name: "Juan Pérez", role: "Backend Developer", email: "juan@example.com", status: "Activo" },
-                    { name: "Ana López", role: "UI/UX Designer", email: "ana@example.com", status: "Ausente" },
-                    { name: "Carlos Ruiz", role: "DevOps Engineer", email: "carlos@example.com", status: "Activo" },
-                    { name: "Laura Martínez", role: "Project Manager", email: "laura@example.com", status: "Activo" },
-                  ].map((member, i) => (
-                    <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <Avatar>
-                          <AvatarFallback>{member.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="text-sm font-medium">{member.name}</p>
-                          <p className="text-sm text-muted-foreground">{member.role}</p>
-                          <p className="text-xs text-muted-foreground">{member.email}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={member.status === "Activo" ? "default" : "secondary"}>
-                          {member.status}
-                        </Badge>
-                        <Button size="sm" variant="outline">
-                          Editar
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <TeamManager />
           </TabsContent>
 
           {/* Tab: Settings */}
           <TabsContent value="settings">
-            <Card>
-              <CardHeader>
-                <CardTitle>Configuración</CardTitle>
-                <CardDescription>
-                  Administra las preferencias de tu cuenta
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Configuración en desarrollo...
-                </p>
-              </CardContent>
-            </Card>
+            <SettingsForm />
           </TabsContent>
         </Tabs>
       </div>
